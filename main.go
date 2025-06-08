@@ -158,8 +158,10 @@ func main() {
 	//ゲーム全体
 	const (
 		Menu GameState = iota
+		GameClear
 		GameOver
 	)
+	var game GameState = GameClear
 
 	//testaaa := 0
 	for {
@@ -182,10 +184,17 @@ func main() {
 				}
 			}
 
-			drawInt := func(x, y, num int) { // 数字を描画
+			drawInt := func(x, y, num int, color ...tcell.Style) { // 数字を描画
 				digits := numToDigits(num)
+
 				for i := 0; i < len(digits); i++ {
-					screen.SetContent(x+i, y, rune('0'+digits[i]), nil, tcell.StyleDefault)
+					if len(color) == 0 {
+						screen.SetContent(x+i, y, rune('0'+digits[i]), nil, tcell.StyleDefault)
+					} else {
+						screen.SetContent(x+i, y, rune('0'+digits[i]), nil, color)
+					}
+					//screen.SetContent(x+i, y, rune('0'+digits[i]), nil, tcell.StyleDefault)
+					//screen.SetContent(x+i, y, rune('0'+digits[i]), nil, tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorRed))
 				}
 			}
 
@@ -208,11 +217,16 @@ func main() {
 			siky := sikaku.y + sikaku.dy
 
 			drawInt(1, siky+6, enummitainayatu(Menu))
-			switch Menu {
+			switch game {
 			case Menu:
 				drawString(5, siky+8, "hoge")
-			default:
+			case GameClear:
+				drawString(sikaku.x+sikaku.dx/2-5, sikaku.y+sikaku.dy/2, "Game Clear")
+			case GameOver:
 
+				drawString(5, siky+8, "Game Over")
+			default:
+				drawString(5, siky+8, "default")
 			}
 
 			// ボールのspeedが一桁ずつ int[] で帰る
