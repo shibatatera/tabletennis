@@ -191,7 +191,7 @@ func main() {
 					if len(color) == 0 {
 						screen.SetContent(x+i, y, rune('0'+digits[i]), nil, tcell.StyleDefault)
 					} else {
-						screen.SetContent(x+i, y, rune('0'+digits[i]), nil, color)
+						screen.SetContent(x+i, y, rune('0'+digits[i]), nil, tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorRed))
 					}
 					//screen.SetContent(x+i, y, rune('0'+digits[i]), nil, tcell.StyleDefault)
 					//screen.SetContent(x+i, y, rune('0'+digits[i]), nil, tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorRed))
