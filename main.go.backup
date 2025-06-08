@@ -1,0 +1,158 @@
+package main
+
+import (
+	"time"
+
+	"github.com/gdamore/tcell/v2"
+)
+
+type kouzoutai struct {
+	x int
+	y int
+}
+
+func handleKeyEvent(s tcell.Screen, ch chan<- int) {
+	for {
+		ev := s.PollEvent()
+		switch ev := ev.(type) {
+		case *tcell.EventKey:
+			switch ev.Key() {
+			case tcell.KeyEscape:
+				ch <- 1
+			case tcell.KeyUp:
+				keyuppress = true
+				pos_y--
+			case tcell.KeyDown:
+				pos_y++
+			case tcell.KeyLeft:
+				pos_x--
+			case tcell.KeyRight:
+				pos_x++
+			}
+		}
+	}
+}
+
+hosi := kouzoutai{x: 30, y: 10}
+
+var pos_x, pos_y = 5, 5
+var keyuppress = false
+
+func main() {
+	screen, err := tcell.NewScreen()
+	if err != nil {
+		panic(err)
+	}
+	if err := screen.Init(); err != nil {
+		panic(err)
+	}
+	defer screen.Fini()
+
+	ch := make(chan int)
+	go handleKeyEvent(screen, ch)
+
+	//ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(16 * time.Millisecond)
+	defer ticker.Stop()
+
+	ball := '●'
+	screen_x, screen_y := screen.Size()
+
+	for {
+		select {
+		case <-ticker.C:
+			screen.Clear()
+
+			screen.SetContent(hosi.x, hosi.y, "★", nil, tcell.StyleDefault)
+			
+
+			screen.SetContent(pos_x, pos_y, ball, nil, tcell.StyleDefault)
+
+			// ┌
+			screen.SetContent(0, 0, tcell.RuneULCorner, nil, tcell.StyleDefault)
+			// └
+			screen.SetContent(0, 2, tcell.RuneLLCorner, nil, tcell.StyleDefault)
+			// ─
+			for col := 1; col < 6; col++ {
+				screen.SetContent(col, 0, tcell.RuneHLine, nil, tcell.StyleDefault)
+			}
+			// │
+			screen.SetContent(0, 1, tcell.RuneVLine, nil, tcell.StyleDefault)
+			screen.SetContent(6, 1, tcell.RuneVLine, nil, tcell.StyleDefault)
+			// ─
+			for col := 1; col < 6; col++ {
+				screen.SetContent(col, 2, tcell.RuneHLine, nil, tcell.StyleDefault)
+			}
+			// ┐
+			screen.SetContent(6, 0, tcell.RuneURCorner, nil, tcell.StyleDefault)
+			// ┘
+			screen.SetContent(6, 2, tcell.RuneLRCorner, nil, tcell.StyleDefault)
+
+			screen.Show()
+
+			screen_x, screen_y = screen.Size()
+
+			if pos_x >= screen_x {
+				pos_x = screen_x - 1
+			}
+			if pos_x < 0 {
+				pos_x = 0
+			}
+			if pos_y >= screen_y {
+				pos_y = screen_y - 1
+			}
+			if pos_y < 0 {
+				pos_y = 0
+			}
+
+			keyuppress = false
+		case i := <-ch:
+			if i == 1 {
+				return
+			}
+		}
+		/*ev := screen.PollEvent() // イベントを取得する
+		switch ev := ev.(type) {
+		case *tcell.EventKey:
+			switch ev.Key() { // 何のキーが押されたか？を調べる
+			case tcell.KeyEscape:
+				return
+			}
+		default:
+			screen.Clear()
+			screen.SetContent(pos_x, pos_y, ball, nil, tcell.StyleDefault)
+			screen.Show()
+
+			pos_x += 1
+			time.Sleep(1 * time.Second)
+		}*/
+
+		//screen.ShowCursor(pos_x, pos_y) //カーソル
+
+	}
+}
+
+/*case tcell.KeyUp:
+	pos_y--
+	if pos_y <= 0 {
+		pos_y = 0
+	}
+case tcell.KeyDown:
+	pos_y++
+	if pos_y >= screen_y-1 {
+		pos_y = screen_y - 1
+	}
+case tcell.KeyLeft:
+	pos_x--
+	if pos_x <= 0 {
+		pos_x = 0
+	}
+case tcell.KeyRight:
+	pos_x++
+	if pos_x >= screen_x-1 {
+		pos_x = screen_x - 1
+	}*/
+//}
+/*case *tcell.EventResize:
+screen.Sync()
+screen_x, screen_y = screen.Size()*/

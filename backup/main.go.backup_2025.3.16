@@ -1,0 +1,290 @@
+//キーボードの同時押しをやろうとして、わからなかった所
+
+
+package main
+
+import (
+	"time"
+
+	"github.com/gdamore/tcell/v2"
+)
+
+type Racket struct {
+	x  int
+	y  int
+	dy int
+}
+
+type Ball struct {
+	x         int
+	y         int
+	mx        string //飛んでいく向き
+	my        string
+	hansya    int //ラケット
+	speed     int //tick内で数値を減らしていって、0になったらボールが動く
+	max_speed int //speedが0になったらspeedに代入。数値が小さいとボールが速くなる
+	gra       rune
+}
+
+type Diamond struct {
+	x   int
+	y   int
+	gra rune
+}
+
+type Sikaku struct {
+	x  int
+	y  int
+	dx int
+	dy int
+}
+
+func handleKeyEvent(s tcell.Screen, ch chan<- int) {
+	for {
+		ev := s.PollEvent()
+		switch ev := ev.(type) {
+		case *tcell.EventKey:
+			switch ev.Key() {
+			case tcell.KeyEscape: //終了
+				ch <- 1
+			case tcell.KeyUp:
+				ch <- 4
+				time.Sleep(100 * time.Millisecond)
+				//racket.y--
+			case tcell.KeyDown:
+				ch <- 5
+				time.Sleep(100 * time.Millisecond)
+				//racket.y++
+			default:
+				switch ev.Rune() {
+				case 'w':
+					ch <- 2
+					time.Sleep(100 * time.Millisecond)
+					//racket.y--
+				case 's':
+					ch <- 3
+					time.Sleep(100 * time.Millisecond)
+					//racket.y++
+				}
+			}
+		}
+	}
+}
+
+// var pos_x, pos_y = 5, 5
+var keyuppress = false
+
+func main() {
+	screen, err := tcell.NewScreen()
+	if err != nil {
+		panic(err)
+	}
+	if err := screen.Init(); err != nil {
+		panic(err)
+	}
+	defer screen.Fini()
+
+	//構造体
+	ball := Ball{x: 40, y: 15, mx: "left", my: "up", hansya: 0, speed: 120, max_speed: 8, gra: '●'}
+	diamond := Diamond{x: 30, y: 10, gra: tcell.RuneDiamond}
+	sikaku := Sikaku{x: 0, y: 0, dx: 80, dy: 25}
+	racket := []Racket{
+		{x: 10, y: 3, dy: 4},
+		{x: sikaku.dx - 10, y: 3, dy: 4},
+	}
+
+	ch := make(chan int)
+	go handleKeyEvent(screen, ch)
+
+	//ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(16 * time.Millisecond)
+	defer ticker.Stop()
+
+	screen_x, screen_y := screen.Size()
+
+	for {
+		select {
+		case <-ticker.C:
+			screen.Clear()
+			//描画----------------------------------------------------
+			//ダイアモンド
+			screen.SetContent(diamond.x, diamond.y, diamond.gra, nil, tcell.StyleDefault)
+
+			//ボール
+			screen.SetContent(ball.x, ball.y, ball.gra, nil, tcell.StyleDefault)
+
+			//大きな四角形
+			// ┌
+			screen.SetContent(sikaku.x, sikaku.y, tcell.RuneULCorner, nil, tcell.StyleDefault)
+			// └
+			screen.SetContent(sikaku.x, sikaku.y+sikaku.dy, tcell.RuneLLCorner, nil, tcell.StyleDefault)
+			// ─
+			for col := sikaku.x + 1; col < sikaku.x+sikaku.dx; col++ {
+				screen.SetContent(col, sikaku.y, tcell.RuneHLine, nil, tcell.StyleDefault)
+			}
+			// │
+			for col := sikaku.y + 1; col < sikaku.y+sikaku.dy; col++ {
+				screen.SetContent(sikaku.x, col, tcell.RuneVLine, nil, tcell.StyleDefault)
+			}
+			for col := sikaku.y + 1; col < sikaku.y+sikaku.dy; col++ {
+				screen.SetContent(sikaku.x+sikaku.dx, col, tcell.RuneVLine, nil, tcell.StyleDefault)
+			}
+			// ─
+			for col := sikaku.x + 1; col < sikaku.x+sikaku.dx; col++ {
+				screen.SetContent(col, sikaku.y+sikaku.dy, tcell.RuneHLine, nil, tcell.StyleDefault)
+			}
+			// ┐
+			screen.SetContent(sikaku.x+sikaku.dx, sikaku.y, tcell.RuneURCorner, nil, tcell.StyleDefault)
+			// ┘
+			screen.SetContent(sikaku.x+sikaku.dx, sikaku.y+sikaku.dy, tcell.RuneLRCorner, nil, tcell.StyleDefault)
+
+			//ラケット
+			for i := 0; i < len(racket); i++ {
+				for col := racket[i].y + 1; col < racket[i].y+racket[i].dy; col++ {
+					screen.SetContent(racket[i].x, col, tcell.RuneBlock, nil, tcell.StyleDefault)
+				}
+			}
+
+			screen.Show()
+
+			//処理------------------------------------------------------------
+			screen_x, screen_y = screen.Size()
+			//ボールを動かす
+			ball.speed = ball.speed - 1
+			if ball.speed <= 0 {
+				if ball.mx == "left" {
+					ball.x--
+					ball.hansya--
+				}
+				if ball.mx == "right" {
+					ball.x++
+					ball.hansya--
+				}
+				if ball.my == "up" {
+					ball.y--
+				}
+				if ball.my == "down" {
+					ball.y++
+				}
+
+				ball.speed = ball.max_speed
+			}
+			//ボールが四角形の壁に当たると跳ね返る
+			//ボールをスクリーン外に出ないようにする
+			if ball.x >= screen_x {
+				ball.x = screen_x - 1
+				ball.mx = "left"
+			}
+			if ball.x < 0 {
+				ball.x = 0
+				ball.mx = "right"
+			}
+			if ball.y >= screen_y {
+				ball.y = screen_y - 1
+				ball.my = "up"
+			}
+			if ball.y < 0 {
+				ball.y = 0
+				ball.my = "down"
+			}
+			//四角形の中
+			if ball.x >= sikaku.dx {
+				ball.x = sikaku.dx - 1
+				ball.mx = "left"
+			}
+			if ball.x <= sikaku.x {
+				ball.x = sikaku.x + 1
+				ball.mx = "right"
+			}
+			if ball.y >= sikaku.dy {
+				ball.y = sikaku.dy - 1
+				ball.my = "up"
+			}
+			if ball.y <= sikaku.y {
+				ball.y = sikaku.y + 1
+				ball.my = "down"
+			}
+			//ボールがラケットに当たる
+			for i := 0; i < len(racket); i++ {
+				if ball.x == racket[i].x && (ball.y <= racket[i].y+racket[i].dy && ball.y >= racket[i].y) {
+					if ball.mx == "left" && ball.hansya <= 0 {
+						ball.mx = "right"
+						ball.hansya = 5
+					}
+					if ball.mx == "right" && ball.hansya <= 0 {
+						ball.mx = "left"
+						ball.hansya = 5
+					}
+				}
+			}
+
+			//ラケットを四角形の中から出ないようにする
+			for i := 0; i < len(racket); i++ {
+				if racket[i].y+racket[i].dy >= sikaku.dy {
+					racket[i].y = sikaku.dy - racket[i].dy
+				}
+				if racket[i].y <= sikaku.y {
+					racket[i].y = sikaku.y
+				}
+			}
+
+			keyuppress = false
+		case i := <-ch:
+			switch i {
+			case 1:
+				return
+			case 2:
+				racket[0].y--
+			case 3:
+				racket[0].y++
+			case 4:
+				racket[1].y--
+			case 5:
+				racket[1].y++
+			}
+		}
+		/*ev := screen.PollEvent() // イベントを取得する
+		switch ev := ev.(type) {
+		case *tcell.EventKey:
+			switch ev.Key() { // 何のキーが押されたか？を調べる
+			case tcell.KeyEscape:
+				return
+			}
+		default:
+			screen.Clear()
+			screen.SetContent(pos_x, pos_y, ball, nil, tcell.StyleDefault)
+			screen.Show()
+
+			pos_x += 1
+			time.Sleep(1 * time.Second)
+		}*/
+
+		//screen.ShowCursor(pos_x, pos_y) //カーソル
+
+	}
+}
+
+/*case tcell.KeyUp:
+	pos_y--
+	if pos_y <= 0 {
+		pos_y = 0
+	}
+case tcell.KeyDown:
+	pos_y++
+	if pos_y >= screen_y-1 {
+		pos_y = screen_y - 1
+	}
+case tcell.KeyLeft:
+	pos_x--
+	if pos_x <= 0 {
+		pos_x = 0
+	}
+case tcell.KeyRight:
+	pos_x++
+	if pos_x >= screen_x-1 {
+		pos_x = screen_x - 1
+	}*/
+//}
+/*case *tcell.EventResize:
+screen.Sync()
+screen_x, screen_y = screen.Size()*/
